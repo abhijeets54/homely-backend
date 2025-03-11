@@ -1,0 +1,30 @@
+{
+  "name": "@homely/ui",
+  "version": "0.1.0",
+  "private": true,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@tamagui/animations-react-native": "^1.89.19",
+    "@tamagui/font-inter": "^1.89.19",
+    "@tamagui/react-native-media-driver": "^1.89.19",
+    "@tamagui/shorthands": "^1.89.19",
+    "@tamagui/themes": "^1.89.19",
+    "tamagui": "^1.89.19"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.57",
+    "@types/react-dom": "^18.2.19",
+    "tsup": "^8.0.2",
+    "typescript": "^5.3.3"
+  },
+  "peerDependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  }
+} 
