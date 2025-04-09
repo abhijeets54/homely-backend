@@ -23,11 +23,11 @@ router.post('/register/customer', async (req, res) => {
         const customer = new Customer(req.body);
 
         await customer.save();
-        
+
         // Generate JWT token
         const token = jwt.sign({ id: customer._id, role: 'customer' }, process.env.JWT_SECRET, { expiresIn: '1d' });
-        
-        res.status(201).json({ 
+
+        res.status(201).json({
             message: 'Customer created successfully',
             token,
             user: {
@@ -62,11 +62,11 @@ router.post('/register/seller', async (req, res) => {
         const seller = new Seller(req.body);
 
         await seller.save();
-        
+
         // Generate JWT token
         const token = jwt.sign({ id: seller._id, role: 'seller' }, process.env.JWT_SECRET, { expiresIn: '1d' });
-        
-        res.status(201).json({ 
+
+        res.status(201).json({
             message: 'Seller created successfully',
             token,
             user: {
@@ -102,11 +102,11 @@ router.post('/register/delivery', async (req, res) => {
         const partner = new DeliveryPartner(req.body);
 
         await partner.save();
-        
+
         // Generate JWT token
         const token = jwt.sign({ id: partner._id, role: 'delivery' }, process.env.JWT_SECRET, { expiresIn: '1d' });
-        
-        res.status(201).json({ 
+
+        res.status(201).json({
             message: 'Delivery partner created successfully',
             token,
             user: {
@@ -143,7 +143,7 @@ router.post('/login', async (req, res) => {
         } else {
             return res.status(400).json({ message: 'Invalid role' });
         }
-        
+
         const user = await Model.findOne({ email });
 
         if (!user) {
@@ -158,13 +158,17 @@ router.post('/login', async (req, res) => {
         }
 
         // Generate JWT token
-        const token = jwt.sign({ id: user._id, role }, process.env.JWT_SECRET, { expiresIn: '1d' });
+        const token = jwt.sign(
+            { id: user._id, role: role },  // ✅ Explicitly store role
+            process.env.JWT_SECRET,
+            { expiresIn: '1d' }
+        );
 
         // Remove password from user object
         const userObj = user.toObject();
         delete userObj.password;
 
-        res.json({ 
+        res.json({
             token,
             user: userObj,
             userType: role
@@ -180,7 +184,7 @@ router.post('/login', async (req, res) => {
 router.get('/me', verifyToken, async (req, res) => {
     try {
         const { id, role } = req.user;
-        
+
         let Model;
         if (role === 'seller') {
             Model = Seller;
@@ -191,18 +195,18 @@ router.get('/me', verifyToken, async (req, res) => {
         } else {
             return res.status(400).json({ message: 'Invalid role' });
         }
-        
+
         const user = await Model.findById(id).select('-password');
-        
+
         if (!user) {
             return res.status(404).json({ message: 'User not found' });
         }
-        
+
         res.json({
             user,
-            userType: role
+            userType: user.role
         });
-        
+
     } catch (err) {
         console.error(err);
         res.status(500).json({ message: 'Internal Server Error' });
@@ -214,7 +218,7 @@ router.put('/profile', verifyToken, async (req, res) => {
     try {
         const { id, role } = req.user;
         const { name, phone, address } = req.body;
-        
+
         let Model;
         if (role === 'seller') {
             Model = Seller;
@@ -225,29 +229,29 @@ router.put('/profile', verifyToken, async (req, res) => {
         } else {
             return res.status(400).json({ message: 'Invalid role' });
         }
-        
+
         const user = await Model.findById(id);
-        
+
         if (!user) {
             return res.status(404).json({ message: 'User not found' });
         }
-        
+
         // Update fields
         if (name) user.name = name;
         if (phone) user.phone = phone;
         if (address && (role === 'seller' || role === 'customer')) user.address = address;
-        
+
         await user.save();
-        
+
         // Remove password from user object
         const userObj = user.toObject();
         delete userObj.password;
-        
+
         res.json({
             message: 'Profile updated successfully',
             user: userObj
         });
-        
+
     } catch (err) {
         console.error(err);
         res.status(500).json({ message: 'Internal Server Error' });
@@ -259,11 +263,11 @@ router.put('/change-password', verifyToken, async (req, res) => {
     try {
         const { id, role } = req.user;
         const { currentPassword, newPassword } = req.body;
-        
+
         if (!currentPassword || !newPassword) {
             return res.status(400).json({ message: 'Current password and new password are required' });
         }
-        
+
         let Model;
         if (role === 'seller') {
             Model = Seller;
@@ -274,28 +278,28 @@ router.put('/change-password', verifyToken, async (req, res) => {
         } else {
             return res.status(400).json({ message: 'Invalid role' });
         }
-        
+
         const user = await Model.findById(id);
-        
+
         if (!user) {
             return res.status(404).json({ message: 'User not found' });
         }
-        
+
         // Verify current password
         const isMatch = await bcrypt.compare(currentPassword, user.password);
-        
+
         if (!isMatch) {
             return res.status(401).json({ message: 'Current password is incorrect' });
         }
-        
+
         // Hash new password
         const salt = await bcrypt.genSalt(10);
         user.password = await bcrypt.hash(newPassword, salt);
-        
+
         await user.save();
-        
+
         res.json({ message: 'Password changed successfully' });
-        
+
     } catch (err) {
         console.error(err);
         res.status(500).json({ message: 'Internal Server Error' });

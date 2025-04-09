@@ -1,6 +1,7 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+console.log("🔍 Received Login Request: ", req.body);
 const Customer = require('../models/Customer');
 const Seller = require('../models/Seller');
 

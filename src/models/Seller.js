@@ -8,6 +8,7 @@ const SellerSchema = new mongoose.Schema({
     password: {type: String, required: true},
     address: String,
     status: {type:String,enum:['open','close'],default:'open'},
+    image: { type: String }, // New field for storing image URL or path
     created_at: {type: Date, default: Date.now},
     // updated_at: {type: Date, default: Date.now},
 });

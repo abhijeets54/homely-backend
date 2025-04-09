@@ -1,5 +1,6 @@
 const express = require('express');
 const Category = require('../models/Category');
+const mongoose = require('mongoose');
 const FoodItem = require('../models/FoodItem');
 const verifyToken = require('../middleware/verifyToken');
 
@@ -7,8 +8,14 @@ const router = express.Router();
 
 // Get all categories for a seller
 router.get('/seller/:sellerId', async (req, res) => {
+    const { sellerId } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(sellerId)) {
+        return res.status(400).json({ message: 'Invalid sellerId' });
+    }
+
     try {
-        const categories = await Category.find({ restaurantId: req.params.sellerId });
+        const categories = await Category.find({ restaurantId: sellerId });
         res.json(categories);
     } catch (err) {
         console.error(err);

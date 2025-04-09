@@ -4,13 +4,16 @@ const FoodItem = require('../models/FoodItem');
 const Category = require('../models/Category');
 const Order = require('../models/Order');
 const verifyToken = require('../middleware/verifyToken');
+const mongoose = require('mongoose');
+const multer = require('multer');
+
 
 const router = express.Router();
 
 // Get all sellers
 router.get('/', async (req, res) => {
     try {
-        const sellers = await Seller.find().select('name address status rating');
+        const sellers = await Seller.find().select('name address status rating image');
         res.json(sellers);
     } catch (err) {
         console.error(err);
@@ -21,7 +24,9 @@ router.get('/', async (req, res) => {
 // Get seller by ID
 router.get('/:id', async (req, res) => {
     try {
-        const seller = await Seller.findById(req.params.id).select('name address status rating');
+        const sellerId = req.params.id;
+        console.log('Fetching seller with ID:', sellerId); // Log the seller ID being fetched
+        const seller = await Seller.findById(sellerId).select('name address status rating');
         
         if (!seller) {
             return res.status(404).json({ message: 'Seller not found' });
@@ -178,6 +183,34 @@ router.get('/dashboard', verifyToken, async (req, res) => {
     } catch (err) {
         console.error(err);
         res.status(500).json({ message: 'Server Error' });
+    }
+});
+
+
+// Set up multer for file uploads
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        cb(null, 'uploads/'); // Directory to store uploaded images
+    },
+    filename: (req, file, cb) => {
+        cb(null, Date.now() + '-' + file.originalname); // Unique filename
+    }
+});
+
+const upload = multer({ storage: storage });
+
+// Route to add an image for a seller
+router.post('/:id/image', upload.single('image'), async (req, res) => {
+    try {
+        const seller = await Seller.findById(req.params.id);
+        if (!seller) {
+            return res.status(404).json({ message: 'Seller not found' });
+        }
+        seller.image = req.file.path; // Save the image path to the seller
+        await seller.save();
+        res.status(200).json({ message: 'Image uploaded successfully', seller });
+    } catch (error) {
+        res.status(500).json({ message: 'Error uploading image', error });
     }
 });
 

@@ -8,25 +8,32 @@ const morgan = require('morgan');
 // Load environment variables
 dotenv.config();
 
+
 // Import routes
-const authRoutes = require('./routes/auth');
-const sellerRoutes = require('./routes/seller');
-const customerRoutes = require('./routes/customer');
-const foodRoutes = require('./routes/food');
-const categoryRoutes = require('./routes/category');
-const cartRoutes = require('./routes/cart');
-const orderRoutes = require('./routes/order');
-const reviewRoutes = require('./routes/review');
-const deliveryRoutes = require('./routes/delivery');
-const paymentRoutes = require('./routes/payment');
+const authRoutes = require('./src/routes/auth');
+const sellerRoutes = require('./src/routes/seller');
+const customerRoutes = require('./src/routes/customer');
+const foodRoutes = require('./src/routes/food');
+const categoryRoutes = require('./src/routes/category');
+const cartRoutes = require('./src/routes/cart');
+const orderRoutes = require('./src/routes/order');
+const reviewRoutes = require('./src/routes/review');
+const deliveryRoutes = require('./src/routes/delivery');
+const paymentRoutes = require('./src/routes/payment');
 
 // Initialize express app
 const app = express();
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: 'http://localhost:3000', // Specify the allowed origin
+  credentials: true // Allow credentials
+}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Logging middleware in development
 if (process.env.NODE_ENV === 'development') {

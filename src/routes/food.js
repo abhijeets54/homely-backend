@@ -1,4 +1,5 @@
 const express = require('express');
+const mongoose = require('mongoose');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
@@ -77,15 +78,19 @@ router.get('/:id', async (req, res) => {
 
 // Get food items by seller ID
 router.get('/seller/:sellerId', async (req, res) => {
-  try {
-    const foodItems = await FoodItem.find({ restaurantId: req.params.sellerId })
-      .populate('categoryId', 'name');
-    
-    res.json(foodItems);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Server Error' });
+  // Validate seller ID
+  if (!mongoose.Types.ObjectId.isValid(req.params.sellerId)) {
+      return res.status(400).json({ message: 'Invalid seller ID' });
   }
+try {
+  const foodItems = await FoodItem.find({ restaurantId: req.params.sellerId })
+    .populate('categoryId', 'name');
+    console.log('Fetching food items for seller ID:', req.params.sellerId); // Log the seller ID being fetched
+  res.json(foodItems);
+} catch (err) {
+  console.error(err);
+  res.status(500).json({ message: 'Server Error' });
+}
 });
 
 // Add a new food item (Only seller can add)
@@ -118,6 +123,11 @@ router.post('/', verifyToken, upload.single('image'), async (req, res) => {
       imageUrl = `/uploads/food/${req.file.filename}`;
     }
     
+    // Validate seller ID
+    if (!mongoose.Types.ObjectId.isValid(req.user.id)) {
+        return res.status(400).json({ message: 'Invalid seller ID' });
+    }
+
     const newFood = new FoodItem({
       name,
       categoryId,
