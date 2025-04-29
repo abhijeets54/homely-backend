@@ -45,9 +45,14 @@ const upload = multer({
 const router = express.Router();
 
 // Get all food items
+// Get all food items or filter by sellerId query parameter
 router.get('/', async (req, res) => {
   try {
-    const foodItems = await FoodItem.find()
+    const filter = {};
+    if (req.query.sellerId) {
+      filter.restaurantId = req.query.sellerId;
+    }
+    const foodItems = await FoodItem.find(filter)
       .populate('restaurantId', 'name address status')
       .populate('categoryId', 'name');
     
@@ -82,15 +87,32 @@ router.get('/seller/:sellerId', async (req, res) => {
   if (!mongoose.Types.ObjectId.isValid(req.params.sellerId)) {
       return res.status(400).json({ message: 'Invalid seller ID' });
   }
-try {
-  const foodItems = await FoodItem.find({ restaurantId: req.params.sellerId })
-    .populate('categoryId', 'name');
-    console.log('Fetching food items for seller ID:', req.params.sellerId); // Log the seller ID being fetched
-  res.json(foodItems);
-} catch (err) {
-  console.error(err);
-  res.status(500).json({ message: 'Server Error' });
-}
+  try {
+    const foodItems = await FoodItem.find({ restaurantId: req.params.sellerId })
+      .populate('categoryId', 'name');
+    console.log('Fetching food items for seller ID:', req.params.sellerId);
+    res.json(foodItems);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server Error' });
+  }
+});
+
+// New route: Get food items by seller ID (menu route)
+router.get('/:sellerId/menu', async (req, res) => {
+  // Validate seller ID
+  if (!mongoose.Types.ObjectId.isValid(req.params.sellerId)) {
+    return res.status(400).json({ message: 'Invalid seller ID' });
+  }
+  try {
+    const foodItems = await FoodItem.find({ restaurantId: req.params.sellerId })
+      .populate('categoryId', 'name');
+    console.log('Fetching food items for seller ID (menu route):', req.params.sellerId);
+    res.json(foodItems);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server Error' });
+  }
 });
 
 // Add a new food item (Only seller can add)
