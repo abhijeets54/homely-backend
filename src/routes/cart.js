@@ -92,7 +92,20 @@ router.get('/', verifyToken, async (req, res) => {
         id: cart._id,
         restaurants: Array.from(restaurantMap.values()),
         totalItems,
-        totalAmount
+        totalAmount,
+        items: cartItems.map(item => ({
+          id: item._id,
+          foodItemId: item.foodItemId._id,
+          foodItem: {
+            id: item.foodItemId._id,
+            name: item.foodItemId.name,
+            price: item.foodItemId.price,
+            imageUrl: item.foodItemId.imageUrl,
+            isAvailable: item.foodItemId.isAvailable
+          },
+          quantity: item.quantity,
+          price: item.price
+        }))
       }
     });
   } catch (err) {
@@ -104,29 +117,40 @@ router.get('/', verifyToken, async (req, res) => {
 // Add item to cart
 router.post('/items', verifyToken, async (req, res) => {
   try {
+    console.log('Add to cart request received:', {
+      userId: req.user.id,
+      role: req.user.role,
+      body: req.body
+    });
+
     if (req.user.role !== 'customer') {
+      console.log('Access denied: User is not a customer');
       return res.status(403).json({ message: 'Access Denied' });
     }
 
     const { foodItemId, quantity } = req.body;
 
     if (!foodItemId || !quantity || quantity < 1) {
+      console.log('Invalid request: Missing foodItemId or quantity');
       return res.status(400).json({ message: 'Food item ID and quantity are required' });
     }
 
     // Check if food item exists and is available
     const foodItem = await FoodItem.findById(foodItemId);
     if (!foodItem) {
+      console.log('Food item not found:', foodItemId);
       return res.status(404).json({ message: 'Food item not found' });
     }
 
     if (!foodItem.isAvailable) {
+      console.log('Food item not available:', foodItemId);
       return res.status(400).json({ message: 'Food item is not available' });
     }
 
     // Check if restaurant is open
     const seller = await Seller.findById(foodItem.restaurantId);
     if (!seller || seller.status !== 'open') {
+      console.log('Restaurant closed:', seller?.status);
       return res.status(400).json({ message: 'Restaurant is currently closed' });
     }
 
@@ -136,12 +160,15 @@ router.post('/items', verifyToken, async (req, res) => {
       status: 'active'
     });
 
+    console.log('Existing cart found:', !!cart);
+
     if (!cart) {
       cart = new Cart({
         customerId: req.user.id,
         status: 'active'
       });
       await cart.save();
+      console.log('New cart created:', cart._id);
     }
 
     // Check if item already exists in cart
@@ -150,11 +177,14 @@ router.post('/items', verifyToken, async (req, res) => {
       foodItemId
     });
 
+    console.log('Existing cart item found:', !!cartItem);
+
     if (cartItem) {
       // Update quantity
       cartItem.quantity += parseInt(quantity);
       cartItem.price = foodItem.price;
       await cartItem.save();
+      console.log('Cart item quantity updated:', cartItem.quantity);
     } else {
       // Add new item
       cartItem = new CartItem({
@@ -164,8 +194,69 @@ router.post('/items', verifyToken, async (req, res) => {
         price: foodItem.price
       });
       await cartItem.save();
+      console.log('New cart item created:', cartItem._id);
     }
 
+    // Get all cart items with food item details (similar to GET /cart)
+    const cartItems = await CartItem.find({ cartId: cart._id })
+      .populate({
+        path: 'foodItemId',
+        select: 'name price imageUrl isAvailable restaurantId',
+        populate: {
+          path: 'restaurantId',
+          select: 'name status'
+        }
+      });
+
+    // Group items by restaurant
+    const restaurantMap = new Map();
+    
+    for (const item of cartItems) {
+      const restaurant = item.foodItemId.restaurantId;
+      const restaurantId = restaurant._id.toString();
+      
+      if (!restaurantMap.has(restaurantId)) {
+        restaurantMap.set(restaurantId, {
+          restaurant: {
+            id: restaurantId,
+            name: restaurant.name,
+            status: restaurant.status
+          },
+          items: []
+        });
+      }
+      
+      restaurantMap.get(restaurantId).items.push({
+        id: item._id,
+        foodItem: {
+          id: item.foodItemId._id,
+          name: item.foodItemId.name,
+          price: item.foodItemId.price,
+          imageUrl: item.foodItemId.imageUrl,
+          isAvailable: item.foodItemId.isAvailable
+        },
+        quantity: item.quantity,
+        price: item.price
+      });
+    }
+    
+    // Calculate totals
+    let totalItems = 0;
+    let totalAmount = 0;
+    
+    for (const restaurant of restaurantMap.values()) {
+      let restaurantTotal = 0;
+      
+      for (const item of restaurant.items) {
+        totalItems += item.quantity;
+        restaurantTotal += item.price * item.quantity;
+      }
+      
+      restaurant.total = restaurantTotal;
+      totalAmount += restaurantTotal;
+    }
+
+    console.log('Item successfully added to cart');
     res.status(201).json({ 
       message: 'Item added to cart',
       cartItem: {
@@ -173,6 +264,25 @@ router.post('/items', verifyToken, async (req, res) => {
         foodItemId: cartItem.foodItemId,
         quantity: cartItem.quantity,
         price: cartItem.price
+      },
+      cart: {
+        id: cart._id,
+        restaurants: Array.from(restaurantMap.values()),
+        totalItems,
+        totalAmount,
+        items: cartItems.map(item => ({
+          id: item._id,
+          foodItemId: item.foodItemId._id,
+          foodItem: {
+            id: item.foodItemId._id,
+            name: item.foodItemId.name,
+            price: item.foodItemId.price,
+            imageUrl: item.foodItemId.imageUrl,
+            isAvailable: item.foodItemId.isAvailable
+          },
+          quantity: item.quantity,
+          price: item.price
+        }))
       }
     });
   } catch (err) {

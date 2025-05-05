@@ -63,6 +63,26 @@ router.get('/', async (req, res) => {
   }
 });
 
+// Get food items by category ID
+router.get('/category/:categoryId', async (req, res) => {
+  try {
+    // Validate category ID
+    if (!mongoose.Types.ObjectId.isValid(req.params.categoryId)) {
+      return res.status(400).json({ message: 'Invalid category ID' });
+    }
+    
+    const foodItems = await FoodItem.find({ categoryId: req.params.categoryId })
+      .populate('restaurantId', 'name address status')
+      .populate('categoryId', 'name');
+    
+    console.log('Fetching food items for category ID:', req.params.categoryId);
+    res.json(foodItems);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server Error' });
+  }
+});
+
 // Get food item by ID
 router.get('/:id', async (req, res) => {
   try {

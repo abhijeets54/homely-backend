@@ -26,8 +26,10 @@ const app = express();
 
 // Middleware
 app.use(cors({
-  origin: 'http://localhost:3000', // Specify the allowed origin
-  credentials: true // Allow credentials
+  origin: process.env.FRONTEND_URL || 'http://localhost:3000', // Specify the allowed origin
+  credentials: true, // Allow credentials
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], // Specify allowed methods
+  allowedHeaders: ['Content-Type', 'Authorization'] // Specify allowed headers
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));

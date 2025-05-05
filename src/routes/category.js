@@ -6,6 +6,26 @@ const verifyToken = require('../middleware/verifyToken');
 
 const router = express.Router();
 
+// Get category by ID
+router.get('/:id', async (req, res) => {
+    const { id } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+        return res.status(400).json({ message: 'Invalid category ID' });
+    }
+
+    try {
+        const category = await Category.findById(id);
+        if (!category) {
+            return res.status(404).json({ message: 'Category not found' });
+        }
+        res.json(category);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Server Error' });
+    }
+});
+
 // Get all categories for a seller
 router.get('/seller/:sellerId', async (req, res) => {
     const { sellerId } = req.params;
