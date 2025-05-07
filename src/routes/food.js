@@ -73,10 +73,19 @@ router.get('/category/:categoryId', async (req, res) => {
     
     const foodItems = await FoodItem.find({ categoryId: req.params.categoryId })
       .populate('restaurantId', 'name address status')
-      .populate('categoryId', 'name');
+      .populate('categoryId', 'name')
+      .lean();
+    
+    // Map _id to id for frontend consistency
+    const mappedItems = foodItems.map(item => ({
+      ...item,
+      id: item._id,
+      categoryId: item.categoryId._id,
+      restaurantId: item.restaurantId._id
+    }));
     
     console.log('Fetching food items for category ID:', req.params.categoryId);
-    res.json(foodItems);
+    res.json(mappedItems);
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Server Error' });
