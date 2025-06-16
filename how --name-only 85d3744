@@ -1,0 +1,8 @@
+[33m85d3744[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmaster[m[33m, [m[1;31morigin/master[m[33m, [m[1;31morigin/HEAD[m[33m)[m waheguru please let me deploy
+[33m68c03ed[m waheguru please let me deploy
+[33m37633c3[m fixed categories
+[33mc2b5278[m add to cart fixed
+[33m36a69e8[m Fix: Menu edit
+[33mcc39c6d[m Fix: Refactor code structure and remove redundant code blocks for improved readability and maintainability
+[33mdbb3e62[m Delete extra server.js
+[33m506c0ae[m updated server.js, created necessary routes and models

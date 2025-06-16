@@ -238,18 +238,19 @@ var config = createTamagui({
     pointerCoarse: { pointer: "coarse" }
   })
 });
+var tamagui_config_default = config;
 
 // src/index.tsx
 import { TamaguiProvider as TamaguiProviderOG } from "tamagui";
 import { jsx as jsx2 } from "react/jsx-runtime";
 var TamaguiProvider = ({ children, ...props }) => {
-  return /* @__PURE__ */ jsx2(TamaguiProviderOG, { config, ...props, children });
+  return /* @__PURE__ */ jsx2(TamaguiProviderOG, { config: tamagui_config_default, ...props, children });
 };
 export {
   Button,
   Card,
   FoodCard,
   TamaguiProvider,
-  config as default
+  tamagui_config_default as config
 };
 //# sourceMappingURL=index.mjs.map

@@ -1,9 +1,9 @@
 export * from './components/Button'
 export * from './components/Card'
-export { config as default } from './tamagui.config'
+export { default as config } from './tamagui.config'
 
 import { TamaguiProvider as TamaguiProviderOG } from 'tamagui'
-import { config } from './tamagui.config'
+import config from './tamagui.config'
 
 export const TamaguiProvider = ({ children, ...props }: any) => {
   return (

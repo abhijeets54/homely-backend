@@ -24,7 +24,7 @@ __export(index_exports, {
   Card: () => Card,
   FoodCard: () => FoodCard,
   TamaguiProvider: () => TamaguiProvider,
-  default: () => config
+  config: () => tamagui_config_default
 });
 module.exports = __toCommonJS(index_exports);
 
@@ -268,18 +268,20 @@ var config = (0, import_tamagui3.createTamagui)({
     pointerCoarse: { pointer: "coarse" }
   })
 });
+var tamagui_config_default = config;
 
 // src/index.tsx
 var import_tamagui5 = require("tamagui");
 var import_jsx_runtime2 = require("react/jsx-runtime");
 var TamaguiProvider = ({ children, ...props }) => {
-  return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(import_tamagui5.TamaguiProvider, { config, ...props, children });
+  return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(import_tamagui5.TamaguiProvider, { config: tamagui_config_default, ...props, children });
 };
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
   Button,
   Card,
   FoodCard,
-  TamaguiProvider
+  TamaguiProvider,
+  config
 });
 //# sourceMappingURL=index.js.map
