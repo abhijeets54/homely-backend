@@ -6,11 +6,12 @@ const fs = require('fs');
 const FoodItem = require('../models/FoodItem');
 const Category = require('../models/Category');
 const verifyToken = require('../middleware/verifyToken');
+const { uploadImage, deleteImage, extractPublicId } = require('../utils/cloudinary');
 
-// Configure multer for file uploads
+// Configure multer for temporary file storage
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    const uploadDir = path.join(__dirname, '../../uploads/food');
+    const uploadDir = path.join(__dirname, '../../temp');
     
     // Create directory if it doesn't exist
     if (!fs.existsSync(uploadDir)) {
@@ -42,6 +43,17 @@ const upload = multer({
   }
 });
 
+// Helper function to handle image filenames
+const processImageUrl = (imageUrl) => {
+  // If it's already a full path (starts with /uploads/ or http), return as is
+  if (imageUrl.startsWith('/uploads/') || imageUrl.startsWith('http')) {
+    return imageUrl;
+  }
+  
+  // Otherwise, treat it as a filename in the food folder
+  return `/uploads/food/${imageUrl}`;
+};
+
 const router = express.Router();
 
 // Get all food items
@@ -50,6 +62,10 @@ router.get('/', async (req, res) => {
   try {
     const filter = {};
     if (req.query.sellerId) {
+      // Validate sellerId if provided
+      if (!mongoose.Types.ObjectId.isValid(req.query.sellerId)) {
+        return res.status(400).json({ message: 'Invalid seller ID format' });
+      }
       filter.restaurantId = req.query.sellerId;
     }
     const foodItems = await FoodItem.find(filter)
@@ -151,7 +167,7 @@ router.post('/', verifyToken, upload.single('image'), async (req, res) => {
       return res.status(403).json({ message: 'Access Denied' });
     }
     
-    const { name, categoryId, price, description, quantity, isAvailable } = req.body;
+    const { name, categoryId, price, description, quantity, isAvailable, imageUrl: providedImageUrl } = req.body;
     
     // Validate required fields
     if (!name || !categoryId || !price) {
@@ -170,8 +186,20 @@ router.post('/', verifyToken, upload.single('image'), async (req, res) => {
     
     // Create image URL if image was uploaded
     let imageUrl = '';
+    let imagePublicId = '';
+    
     if (req.file) {
-      imageUrl = `/uploads/food/${req.file.filename}`;
+      // Upload to Cloudinary
+      const filePath = req.file.path;
+      const result = await uploadImage(filePath, 'food');
+      
+      // Delete temporary file
+      fs.unlinkSync(filePath);
+      
+      imageUrl = result.secure_url;
+      imagePublicId = result.public_id;
+    } else if (providedImageUrl) {
+      imageUrl = providedImageUrl;
     }
     
     // Validate seller ID
@@ -185,6 +213,7 @@ router.post('/', verifyToken, upload.single('image'), async (req, res) => {
       restaurantId: req.user.id,
       price: parseFloat(price),
       imageUrl,
+      imagePublicId,
       description: description || '',
       quantity: quantity ? parseInt(quantity) : 0,
       isAvailable: isAvailable === 'true'
@@ -209,7 +238,7 @@ router.put('/:id', verifyToken, upload.single('image'), async (req, res) => {
       return res.status(403).json({ message: 'Access Denied' });
     }
     
-    const { name, categoryId, price, description, quantity, isAvailable } = req.body;
+    const { name, categoryId, price, description, quantity, isAvailable, imageUrl: providedImageUrl } = req.body;
     
     // Find the food item
     const foodItem = await FoodItem.findOne({
@@ -244,20 +273,28 @@ router.put('/:id', verifyToken, upload.single('image'), async (req, res) => {
     
     // Update image if new one was uploaded
     if (req.file) {
-      // Delete old image if it exists
-      if (foodItem.imageUrl) {
-        const oldImagePath = path.join(__dirname, '../../', foodItem.imageUrl);
-        if (fs.existsSync(oldImagePath)) {
-          fs.unlinkSync(oldImagePath);
-        }
+      // Delete old image from Cloudinary if it exists
+      if (foodItem.imageUrl && foodItem.imageUrl.includes('cloudinary') && foodItem.imagePublicId) {
+        await deleteImage(foodItem.imagePublicId);
       }
       
-      foodItem.imageUrl = `/uploads/food/${req.file.filename}`;
+      // Upload to Cloudinary
+      const filePath = req.file.path;
+      const result = await uploadImage(filePath, 'food');
+      
+      // Delete temporary file
+      fs.unlinkSync(filePath);
+      
+      foodItem.imageUrl = result.secure_url;
+      foodItem.imagePublicId = result.public_id;
+    } else if (providedImageUrl && providedImageUrl !== foodItem.imageUrl) {
+      // If it's a Cloudinary URL, use it directly
+      foodItem.imageUrl = providedImageUrl;
     }
     
     await foodItem.save();
     
-    res.json({ 
+    res.status(200).json({ 
       message: 'Food item updated successfully', 
       foodItem 
     });
@@ -283,17 +320,14 @@ router.delete('/:id', verifyToken, async (req, res) => {
       return res.status(404).json({ message: 'Food item not found' });
     }
     
-    // Delete image file if it exists
-    if (foodItem.imageUrl) {
-      const imagePath = path.join(__dirname, '../../', foodItem.imageUrl);
-      if (fs.existsSync(imagePath)) {
-        fs.unlinkSync(imagePath);
-      }
+    // Delete image from Cloudinary if it exists
+    if (foodItem.imageUrl && foodItem.imageUrl.includes('cloudinary') && foodItem.imagePublicId) {
+      await deleteImage(foodItem.imagePublicId);
     }
     
-    await foodItem.deleteOne();
+    await FoodItem.deleteOne({ _id: req.params.id });
     
-    res.json({ message: 'Food item deleted successfully' });
+    res.status(200).json({ message: 'Food item deleted successfully' });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Server Error' });

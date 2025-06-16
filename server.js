@@ -20,13 +20,14 @@ const orderRoutes = require('./src/routes/order');
 const reviewRoutes = require('./src/routes/review');
 const deliveryRoutes = require('./src/routes/delivery');
 const paymentRoutes = require('./src/routes/payment');
+const uploadRoutes = require('./src/routes/upload');
 
 // Initialize express app
 const app = express();
 
 // Middleware
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000', // Specify the allowed origin
+  origin: process.env.FRONTEND_URL || ['http://localhost:3000', 'https://homely-frontend.vercel.app'], // Specify the allowed origins
   credentials: true, // Allow credentials
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], // Specify allowed methods
   allowedHeaders: ['Content-Type', 'Authorization'] // Specify allowed headers
@@ -56,10 +57,21 @@ app.use('/api/order', orderRoutes);
 app.use('/api/review', reviewRoutes);
 app.use('/api/delivery', deliveryRoutes);
 app.use('/api/payment', paymentRoutes);
+app.use('/api/upload', uploadRoutes);
 
 // Root route
 app.get('/', (req, res) => {
   res.json({ message: 'Welcome to Homely API' });
+});
+
+// Health check route for Render
+app.get('/health', (req, res) => {
+  res.status(200).json({ 
+    status: 'ok',
+    message: 'Homely API is running',
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development'
+  });
 });
 
 // Error handling middleware

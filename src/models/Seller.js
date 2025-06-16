@@ -3,12 +3,26 @@ const bcrypt = require('bcryptjs');
 
 const SellerSchema = new mongoose.Schema({
     name: String,
-    email: {type: String, unique: true,required: true},
+    email: {type: String, unique: true, required: true},
     phone: String,
     password: {type: String, required: true},
     address: String,
-    status: {type:String,enum:['open','close'],default:'open'},
+    description: {type: String, default: ''},
+    cuisineType: {type: String, default: ''},
+    status: {type: String, enum: ['open', 'close'], default: 'open'},
+    openingTime: {type: String, default: '09:00'},
+    closingTime: {type: String, default: '22:00'},
+    minimumOrder: {type: Number, default: 10},
+    deliveryRadius: {type: Number, default: 5},
     image: { type: String }, // New field for storing image URL or path
+    imageUrl: {
+        type: String,
+        default: ''
+    },
+    imagePublicId: {
+        type: String,
+        default: ''
+    },
     created_at: {type: Date, default: Date.now},
     // updated_at: {type: Date, default: Date.now},
 });

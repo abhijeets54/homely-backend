@@ -5,7 +5,14 @@ const FoodItemSchema = new mongoose.Schema({
   categoryId: { type: mongoose.Schema.Types.ObjectId, ref: 'Category' },
   restaurantId: { type: mongoose.Schema.Types.ObjectId, ref: 'Seller' },
   price: Number,
-  imageUrl: String,
+  imageUrl: {
+    type: String,
+    default: ''
+  },
+  imagePublicId: {
+    type: String,
+    default: ''
+  },
   isAvailable: { type: Boolean, default: true },
   quantity: Number,
   createdAt: { type: Date, default: Date.now },

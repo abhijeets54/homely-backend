@@ -130,6 +130,142 @@ router.post('/', verifyToken, async (req, res) => {
   }
 });
 
+// Create a new order from local cart (customer only)
+router.post('/local-cart', verifyToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'customer') {
+      return res.status(403).json({ message: 'Access Denied' });
+    }
+    
+    const { items, deliveryAddress, specialInstructions } = req.body;
+    
+    if (!items || !items.length) {
+      return res.status(400).json({ message: 'Items are required' });
+    }
+    
+    if (!deliveryAddress) {
+      return res.status(400).json({ message: 'Delivery address is required' });
+    }
+    
+    // Ensure all items have the required fields
+    const validItems = items.every(item => 
+      item.foodItemId && 
+      item.quantity > 0 && 
+      item.price > 0
+    );
+    
+    if (!validItems) {
+      return res.status(400).json({ 
+        message: 'All items must have foodItemId, quantity, and price' 
+      });
+    }
+    
+    // Fetch all food items and their restaurant IDs
+    const foodItemIds = items.map(item => item.foodItemId);
+    const foodItems = await FoodItem.find({ _id: { $in: foodItemIds } });
+    
+    if (foodItems.length === 0) {
+      return res.status(404).json({ message: 'No valid food items found' });
+    }
+    
+    // Create a mapping of food item IDs to their full details
+    const foodItemsMap = {};
+    foodItems.forEach(item => {
+      foodItemsMap[item._id.toString()] = item;
+    });
+    
+    // Ensure all items are from the same restaurant
+    const restaurantId = foodItems[0].restaurantId;
+    const allSameRestaurant = foodItems.every(item => 
+      item.restaurantId.toString() === restaurantId.toString()
+    );
+    
+    if (!allSameRestaurant) {
+      return res.status(400).json({ 
+        message: 'All items must be from the same restaurant' 
+      });
+    }
+    
+    // Get restaurant details
+    const restaurant = await Seller.findById(restaurantId);
+    
+    if (!restaurant) {
+      return res.status(404).json({ message: 'Restaurant not found' });
+    }
+    
+    // Calculate order totals
+    let subtotal = 0;
+    let totalItems = 0;
+    
+    items.forEach(item => {
+      const foodItem = foodItemsMap[item.foodItemId];
+      if (foodItem) {
+        // Use the actual price from the database, not the client-provided price
+        subtotal += foodItem.price * item.quantity;
+        totalItems += item.quantity;
+      }
+    });
+    
+    // Calculate delivery fee (simplified)
+    const deliveryFee = 40; // Fixed delivery fee
+    
+    // Calculate taxes (simplified)
+    const taxRate = 0.05; // 5% tax
+    const taxAmount = subtotal * taxRate;
+    
+    // Calculate total
+    const totalPrice = subtotal + deliveryFee + taxAmount;
+    
+    // Generate order number
+    const orderNumber = `ORD${Date.now().toString().slice(-8)}${Math.floor(Math.random() * 1000)}`;
+    
+    // Create order
+    const order = new Order({
+      orderNumber,
+      userId: req.user.id,
+      restaurantId,
+      subtotal,
+      deliveryFee,
+      taxAmount,
+      totalPrice,
+      totalItems,
+      deliveryAddress,
+      deliveryInstructions: specialInstructions || '',
+      status: 'placed',
+      paymentStatus: 'pending'
+    });
+    
+    await order.save();
+    
+    // Create order items
+    const orderItems = items.map(item => {
+      const foodItem = foodItemsMap[item.foodItemId];
+      return {
+        orderId: order._id,
+        foodItemId: item.foodItemId,
+        name: foodItem ? foodItem.name : 'Unknown Item',
+        price: foodItem ? foodItem.price : item.price,
+        quantity: item.quantity,
+        totalPrice: (foodItem ? foodItem.price : item.price) * item.quantity
+      };
+    });
+    
+    await OrderItem.insertMany(orderItems);
+    
+    res.status(201).json({
+      message: 'Order placed successfully',
+      order: {
+        ...order.toObject(),
+        id: order._id, // Ensure the id field is set for frontend consistency
+        items: orderItems
+      }
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server Error' });
+  }
+});
+
 // Get all orders for a customer
 router.get('/my-orders', verifyToken, async (req, res) => {
   try {

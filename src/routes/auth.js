@@ -50,7 +50,7 @@ router.post('/register/customer', async (req, res) => {
 // Register Seller
 router.post('/register/seller', async (req, res) => {
     try {
-        const { email } = req.body;
+        const { email, imageUrl } = req.body;
 
         // Check if email already exists
         const existingSeller = await Seller.findOne({ email });
@@ -59,7 +59,10 @@ router.post('/register/seller', async (req, res) => {
         }
 
         // No need to hash the password here (handled in Seller model)
-        const seller = new Seller(req.body);
+        const seller = new Seller({
+            ...req.body,
+            image: imageUrl // Store imageUrl in the image field
+        });
 
         await seller.save();
 
@@ -75,7 +78,8 @@ router.post('/register/seller', async (req, res) => {
                 email: seller.email,
                 phone: seller.phone,
                 address: seller.address,
-                status: seller.status
+                status: seller.status,
+                image: seller.image
             }
         });
 
