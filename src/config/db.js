@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 require('dotenv').config(); // Load environment variables
 
 // Log the MONGO_URI to verify it's being read correctly
-// console.log(`MONGO_URI: ${process.env.MONGO_URI}`);
+console.log(`MONGO_URI: ${process.env.MONGO_URI}`);
 
 const connectDB = async () => {
     if (!process.env.MONGO_URI) {

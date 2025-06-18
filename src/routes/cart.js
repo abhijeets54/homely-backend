@@ -328,6 +328,65 @@ router.put('/items/:itemId', verifyToken, async (req, res) => {
     cartItem.quantity = parseInt(quantity);
     await cartItem.save();
 
+    // Get all cart items with food item details
+    const cartItems = await CartItem.find({ cartId: cart._id })
+      .populate({
+        path: 'foodItemId',
+        select: 'name price imageUrl isAvailable restaurantId',
+        populate: {
+          path: 'restaurantId',
+          select: 'name status'
+        }
+      });
+
+    // Group items by restaurant
+    const restaurantMap = new Map();
+    
+    for (const item of cartItems) {
+      const restaurant = item.foodItemId.restaurantId;
+      const restaurantId = restaurant._id.toString();
+      
+      if (!restaurantMap.has(restaurantId)) {
+        restaurantMap.set(restaurantId, {
+          restaurant: {
+            id: restaurantId,
+            name: restaurant.name,
+            status: restaurant.status
+          },
+          items: []
+        });
+      }
+      
+      restaurantMap.get(restaurantId).items.push({
+        id: item._id,
+        foodItem: {
+          id: item.foodItemId._id,
+          name: item.foodItemId.name,
+          price: item.foodItemId.price,
+          imageUrl: item.foodItemId.imageUrl,
+          isAvailable: item.foodItemId.isAvailable
+        },
+        quantity: item.quantity,
+        price: item.price
+      });
+    }
+    
+    // Calculate totals
+    let totalItems = 0;
+    let totalAmount = 0;
+    
+    for (const restaurant of restaurantMap.values()) {
+      let restaurantTotal = 0;
+      
+      for (const item of restaurant.items) {
+        totalItems += item.quantity;
+        restaurantTotal += item.price * item.quantity;
+      }
+      
+      restaurant.total = restaurantTotal;
+      totalAmount += restaurantTotal;
+    }
+
     res.json({ 
       message: 'Cart item updated',
       cartItem: {
@@ -335,6 +394,25 @@ router.put('/items/:itemId', verifyToken, async (req, res) => {
         foodItemId: cartItem.foodItemId,
         quantity: cartItem.quantity,
         price: cartItem.price
+      },
+      cart: {
+        id: cart._id,
+        restaurants: Array.from(restaurantMap.values()),
+        totalItems,
+        totalAmount,
+        items: cartItems.map(item => ({
+          id: item._id,
+          foodItemId: item.foodItemId._id,
+          foodItem: {
+            id: item.foodItemId._id,
+            name: item.foodItemId.name,
+            price: item.foodItemId.price,
+            imageUrl: item.foodItemId.imageUrl,
+            isAvailable: item.foodItemId.isAvailable
+          },
+          quantity: item.quantity,
+          price: item.price
+        }))
       }
     });
   } catch (err) {
@@ -372,7 +450,87 @@ router.delete('/items/:itemId', verifyToken, async (req, res) => {
 
     await cartItem.deleteOne();
 
-    res.json({ message: 'Item removed from cart' });
+    // Get remaining cart items to return updated cart data
+    const cartItems = await CartItem.find({ cartId: cart._id })
+      .populate({
+        path: 'foodItemId',
+        select: 'name price imageUrl isAvailable restaurantId',
+        populate: {
+          path: 'restaurantId',
+          select: 'name status'
+        }
+      });
+
+    // Group items by restaurant
+    const restaurantMap = new Map();
+    
+    for (const item of cartItems) {
+      const restaurant = item.foodItemId.restaurantId;
+      const restaurantId = restaurant._id.toString();
+      
+      if (!restaurantMap.has(restaurantId)) {
+        restaurantMap.set(restaurantId, {
+          restaurant: {
+            id: restaurantId,
+            name: restaurant.name,
+            status: restaurant.status
+          },
+          items: []
+        });
+      }
+      
+      restaurantMap.get(restaurantId).items.push({
+        id: item._id,
+        foodItem: {
+          id: item.foodItemId._id,
+          name: item.foodItemId.name,
+          price: item.foodItemId.price,
+          imageUrl: item.foodItemId.imageUrl,
+          isAvailable: item.foodItemId.isAvailable
+        },
+        quantity: item.quantity,
+        price: item.price
+      });
+    }
+    
+    // Calculate totals
+    let totalItems = 0;
+    let totalAmount = 0;
+    
+    for (const restaurant of restaurantMap.values()) {
+      let restaurantTotal = 0;
+      
+      for (const item of restaurant.items) {
+        totalItems += item.quantity;
+        restaurantTotal += item.price * item.quantity;
+      }
+      
+      restaurant.total = restaurantTotal;
+      totalAmount += restaurantTotal;
+    }
+
+    res.json({ 
+      message: 'Item removed from cart',
+      cart: {
+        id: cart._id,
+        restaurants: Array.from(restaurantMap.values()),
+        totalItems,
+        totalAmount,
+        items: cartItems.map(item => ({
+          id: item._id,
+          foodItemId: item.foodItemId._id,
+          foodItem: {
+            id: item.foodItemId._id,
+            name: item.foodItemId.name,
+            price: item.foodItemId.price,
+            imageUrl: item.foodItemId.imageUrl,
+            isAvailable: item.foodItemId.isAvailable
+          },
+          quantity: item.quantity,
+          price: item.price
+        }))
+      }
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Server Error' });
@@ -399,7 +557,17 @@ router.delete('/', verifyToken, async (req, res) => {
     // Remove all cart items
     await CartItem.deleteMany({ cartId: cart._id });
 
-    res.json({ message: 'Cart cleared successfully' });
+    // Return empty cart response with the same structure for consistency
+    res.json({ 
+      message: 'Cart cleared successfully',
+      cart: {
+        id: cart._id,
+        restaurants: [],
+        totalItems: 0,
+        totalAmount: 0,
+        items: []
+      }
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Server Error' });
