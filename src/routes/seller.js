@@ -275,7 +275,7 @@ router.get('/dashboard', verifyToken, async (req, res) => {
 });
 
 // Delete seller account - Seller only
-router.delete('/account', verifyToken, async (req, res) => {
+router.delete('/profile/delete', verifyToken, async (req, res) => {
     try {
         if (req.user.role !== 'seller') {
             return res.status(403).json({ message: 'Access Denied' });
@@ -290,64 +290,49 @@ router.delete('/account', verifyToken, async (req, res) => {
             return res.status(404).json({ message: 'Seller not found' });
         }
 
-        // Begin a session for transaction
-        const session = await mongoose.startSession();
-        session.startTransaction();
-
-        try {
-            // 1. Delete all food items for this seller
-            const foodItems = await FoodItem.find({ restaurantId: sellerId });
-            
-            // Delete images from cloudinary for each food item
-            for (const item of foodItems) {
-                if (item.imageUrl && item.imageUrl.includes('cloudinary')) {
-                    try {
-                        const publicId = extractPublicId(item.imageUrl);
-                        if (publicId) {
-                            await deleteImage(publicId);
-                        }
-                    } catch (imageError) {
-                        console.error(`Error deleting food item image: ${imageError}`);
-                        // Continue with deletion even if image deletion fails
-                    }
-                }
-            }
-            
-            await FoodItem.deleteMany({ restaurantId: sellerId }, { session });
-            console.log(`Deleted food items for seller ${sellerId}`);
-
-            // 2. Delete all categories for this seller
-            await Category.deleteMany({ restaurantId: sellerId }, { session });
-            console.log(`Deleted categories for seller ${sellerId}`);
-
-            // 3. Delete the seller's profile image from cloudinary if exists
-            if (seller.imageUrl && seller.imageUrl.includes('cloudinary')) {
+        // Delete all food items for this seller
+        const foodItems = await FoodItem.find({ restaurantId: sellerId });
+        
+        // Delete images from cloudinary for each food item
+        for (const item of foodItems) {
+            if (item.imageUrl && item.imageUrl.includes('cloudinary')) {
                 try {
-                    const publicId = extractPublicId(seller.imageUrl);
+                    const publicId = extractPublicId(item.imageUrl);
                     if (publicId) {
                         await deleteImage(publicId);
                     }
                 } catch (imageError) {
-                    console.error(`Error deleting seller profile image: ${imageError}`);
+                    console.error(`Error deleting food item image: ${imageError}`);
                     // Continue with deletion even if image deletion fails
                 }
             }
-
-            // 4. Delete the seller account
-            await Seller.findByIdAndDelete(sellerId, { session });
-            console.log(`Deleted seller account ${sellerId}`);
-
-            // Commit the transaction
-            await session.commitTransaction();
-            session.endSession();
-
-            res.json({ message: 'Seller account and all associated data deleted successfully' });
-        } catch (transactionError) {
-            // Abort transaction in case of error
-            await session.abortTransaction();
-            session.endSession();
-            throw transactionError;
         }
+        
+        await FoodItem.deleteMany({ restaurantId: sellerId });
+        console.log(`Deleted food items for seller ${sellerId}`);
+
+        // Delete all categories for this seller
+        await Category.deleteMany({ restaurantId: sellerId });
+        console.log(`Deleted categories for seller ${sellerId}`);
+
+        // Delete the seller's profile image from cloudinary if exists
+        if (seller.imageUrl && seller.imageUrl.includes('cloudinary')) {
+            try {
+                const publicId = extractPublicId(seller.imageUrl);
+                if (publicId) {
+                    await deleteImage(publicId);
+                }
+            } catch (imageError) {
+                console.error(`Error deleting seller profile image: ${imageError}`);
+                // Continue with deletion even if image deletion fails
+            }
+        }
+
+        // Delete the seller account
+        await Seller.findByIdAndDelete(sellerId);
+        console.log(`Deleted seller account ${sellerId}`);
+
+        res.status(200).json({ message: 'Seller account and all associated data deleted successfully' });
     } catch (err) {
         console.error('Error deleting seller account:', err);
         res.status(500).json({ message: 'Server Error', error: err.message });
